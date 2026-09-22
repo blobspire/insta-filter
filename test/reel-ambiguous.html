@@ -1,0 +1,67 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Insta Filter — ambiguous scroller fixture</title>
+<style>
+  body { font: 14px -apple-system, system-ui, sans-serif; margin: 0; }
+  .box { overflow-y: auto; background: #f6f6f6; margin-bottom: 8px; }
+  #list { height: 200px; } #list > div { height: 900px; }
+  #thread { height: 250px; overflow-y: scroll; } #thread > div { height: 2000px; }
+  #results { padding: 12px; font: 12px ui-monospace, Menlo, monospace; white-space: pre; }
+  .pass { color: #0a0; } .fail { color: #c00; font-weight: 700; }
+</style>
+
+<!--
+  The shape observed on a real DM thread (/direct/t/<id>/): TWO plain-overflow scrollers,
+  neither using scroll-snap — the conversation list and the message thread.
+
+  Served under /reels/ so the router calls it a reel, which is the dangerous combination:
+  if Instagram ever serves a reel without a snap container, the filter must NOT guess which
+  scrollable box to clamp. Clamping the wrong one would freeze the page. It bails instead,
+  and the URL lock still contains the reel.
+-->
+
+<main>
+  <div class="box" id="list"><div>conversation list</div></div>
+  <div class="box" id="thread"><div>message thread</div></div>
+</main>
+
+<div id="results">running…</div>
+
+<script>
+  window.__ifErrors = [];
+  addEventListener('error', (e) => window.__ifErrors.push(e.message));
+  addEventListener('unhandledrejection', (e) => window.__ifErrors.push(String(e.reason)));
+</script>
+<script src="/insta-filter.user.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const styleOf = (id, prop) => getComputedStyle($(id))[prop];
+
+  const checks = [
+    ['Router still classified it as a reel',
+      () => document.documentElement.dataset.ifRoute === 'reel'],
+    ['Neither scroller was tagged (refused to guess)',
+      () => !$('list').classList.contains('if-reel-scroller')
+         && !$('thread').classList.contains('if-reel-scroller')],
+    ['Conversation list still scrollable',  () => styleOf('list', 'overflowY') === 'auto'],
+    ['Message thread still scrollable',     () => styleOf('thread', 'overflowY') === 'scroll'],
+    ['Nothing was hidden',
+      () => document.querySelectorAll('.if-reel-extra, [data-if-hidden]').length === 0],
+    ['Document still clamped (the only containment left)',
+      () => getComputedStyle(document.documentElement).overflowY === 'hidden'
+         && getComputedStyle(document.body).overflowY === 'hidden'],
+    ['No uncaught errors',                  () => window.__ifErrors.length === 0],
+  ];
+
+  setTimeout(() => {
+    let failed = 0;
+    const lines = checks.map(([name, fn]) => {
+      let ok = false;
+      try { ok = fn(); } catch (e) { ok = false; name += ` (threw: ${e.message})`; }
+      if (!ok) failed++;
+      return `<span class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</span>  ${name}`;
+    });
+    lines.push('', failed ? `<span class="fail">${failed} FAILED</span>` : '<span class="pass">all passed</span>');
+    document.getElementById('results').innerHTML = lines.join('\n');
+  }, 800);
+</script>

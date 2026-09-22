@@ -1,0 +1,82 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Insta Filter — reel fixture</title>
+<style>
+  body { font: 14px -apple-system, system-ui, sans-serif; margin: 0; }
+  #snap-scroller { height: 300px; overflow-y: auto; scroll-snap-type: y mandatory; }
+  #snap-scroller > div { height: 300px; scroll-snap-align: start; border-bottom: 1px solid #ccc; }
+  #comments-panel { height: 150px; overflow-y: auto; background: #f6f6f6; }
+  #comments-panel > div { height: 400px; }
+  #results { padding: 12px; font: 12px ui-monospace, Menlo, monospace; white-space: pre; }
+  .pass { color: #0a0; } .fail { color: #c00; font-weight: 700; }
+</style>
+
+<!--
+  Served at /reels/FIXTURE0001/ so the real router classifies it as a reel — the route
+  logic is exercised rather than stubbed.
+
+  Shaped by the live audit: the reel scroller is a scroll-snap container with ~10 queued
+  reels, and the page has no <article> elements. The comments panel is the trap — on the
+  DM inbox the old heuristic matched exactly this kind of plain-overflow box, and clamping
+  one by mistake would break scrolling comments.
+-->
+
+<main>
+  <div id="snap-scroller">
+    <div id="reel-1">reel 1 (the one the friend sent)</div>
+    <div id="reel-2">reel 2</div>
+    <div id="reel-3">reel 3</div>
+    <div id="reel-4">reel 4</div>
+    <div id="reel-5">reel 5</div>
+  </div>
+  <div id="comments-panel"><div>comments, which must stay scrollable</div></div>
+</main>
+
+<div id="results">running…</div>
+
+<script>
+  window.__ifErrors = [];
+  addEventListener('error', (e) => window.__ifErrors.push(e.message));
+  addEventListener('unhandledrejection', (e) => window.__ifErrors.push(String(e.reason)));
+</script>
+<script src="/insta-filter.user.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const visible = (el) => !!el && el.getClientRects().length > 0;
+  const styleOf = (id, prop) => getComputedStyle($(id))[prop];
+
+  const checks = [
+    ['Router classified /reels/<code>/ as a reel',
+      () => document.documentElement.dataset.ifRoute === 'reel'],
+    ['Snap scroller was tagged',
+      () => $('snap-scroller').classList.contains('if-reel-scroller')],
+    ['Comments panel was NOT tagged',
+      () => !$('comments-panel').classList.contains('if-reel-scroller')],
+    ['Snap scroller is clamped (overflow hidden)',
+      () => styleOf('snap-scroller', 'overflowY') === 'hidden'],
+    ['Document itself is clamped (html)',
+      () => getComputedStyle(document.documentElement).overflowY === 'hidden'],
+    ['Document itself is clamped (body)',
+      () => getComputedStyle(document.body).overflowY === 'hidden'],
+    ['Scroll snapping disabled',
+      () => styleOf('snap-scroller', 'scrollSnapType') === 'none'],
+    ['Comments panel still scrollable',
+      () => styleOf('comments-panel', 'overflowY') === 'auto'],
+    ['The reel itself still visible',        () => visible($('reel-1'))],
+    ['Queued reel 2 hidden',                 () => !visible($('reel-2'))],
+    ['Queued reel 5 hidden',                 () => !visible($('reel-5'))],
+    ['No uncaught errors',                   () => window.__ifErrors.length === 0],
+  ];
+
+  setTimeout(() => {
+    let failed = 0;
+    const lines = checks.map(([name, fn]) => {
+      let ok = false;
+      try { ok = fn(); } catch (e) { ok = false; name += ` (threw: ${e.message})`; }
+      if (!ok) failed++;
+      return `<span class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</span>  ${name}`;
+    });
+    lines.push('', failed ? `<span class="fail">${failed} FAILED</span>` : '<span class="pass">all passed</span>');
+    document.getElementById('results').innerHTML = lines.join('\n');
+  }, 800);
+</script>

@@ -1,0 +1,134 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Insta Filter — fixture</title>
+<style>
+  body { font: 14px -apple-system, system-ui, sans-serif; margin: 0; padding: 0 0 80px; }
+  nav { display: flex; gap: 14px; padding: 12px; border-bottom: 1px solid #ddd; }
+  article { border-bottom: 1px solid #eee; }
+  .top { display: flex; gap: 8px; padding: 8px 12px; font-weight: 600; height: 20px; }
+  .media { height: 300px; background: #f2f2f2; }
+  .caption { padding: 10px 12px; }
+  .nag { position: fixed; bottom: 0; left: 0; right: 0; background: #222; color: #fff; padding: 12px; }
+  #results { padding: 12px; font: 12px ui-monospace, Menlo, monospace; white-space: pre; }
+  .pass { color: #0a0; } .fail { color: #c00; font-weight: 700; }
+</style>
+
+<!--
+  A stand-in for Instagram's DOM, shaped by what the live selector audit actually found:
+
+    * posts have NO <header> element — the ad marker is scoped geometrically instead
+    * the marker sits in the post's top chrome, captions sit below the media
+    * nav items are identified by route href and aria-label, never by class
+
+  Open this in any browser. Every line should read PASS.
+-->
+
+<nav>
+  <a href="/" id="nav-home">Home</a>
+  <a href="/reels/" id="nav-reels">Reels</a>
+  <a href="/explore/" id="nav-explore">Explore</a>
+  <a href="/direct/inbox/" id="nav-dm">Messages</a>
+  <a href="#" id="nav-reels-icon"><svg aria-label="Reels" width="16" height="16"></svg></a>
+</nav>
+
+<main>
+  <!-- The account-suggestions panel, as the live audit found it: loose inside <main>,
+       nested several divs deep, containing no <article>. -->
+  <div id="suggest-panel">
+    <div><div><span>Suggested for you</span></div></div>
+    <div class="caption">someaccount</div>
+  </div>
+
+  <div id="feed">
+    <div><article id="post-normal">
+      <div class="top"><span>alice</span></div>
+      <div class="media"></div>
+      <div class="caption">a normal post from someone you follow</div>
+    </article></div>
+
+    <!-- marker in the top chrome: must be hidden -->
+    <div><article id="post-sponsored">
+      <div class="top"><span>brandco</span><span>Sponsored</span></div>
+      <div class="media"></div>
+      <div class="caption">buy this thing</div>
+    </article></div>
+
+    <!-- caption mentioning the word mid-sentence: exact text-node matching protects this -->
+    <div><article id="post-caption-trap">
+      <div class="top"><span>bob</span></div>
+      <div class="media"></div>
+      <div class="caption">honestly this whole event felt Sponsored but it was actually great</div>
+    </article></div>
+
+    <!-- caption that is ONLY the word, far below the media: the geometric gate protects this -->
+    <div><article id="post-caption-exact">
+      <div class="top"><span>dana</span></div>
+      <div class="media"></div>
+      <div class="caption">Sponsored</div>
+    </article></div>
+
+    <div><article id="post-normal-2">
+      <div class="top"><span>cara</span></div>
+      <div class="media"></div>
+      <div class="caption">another real post</div>
+    </article></div>
+
+    <div id="tail-divider"><span>Suggested posts</span></div>
+    <div><article id="post-suggested-1">
+      <div class="top"><span>randomaccount</span></div>
+      <div class="media"></div>
+    </article></div>
+  </div>
+</main>
+
+<div class="nag" id="app-nag"><button>Open the app</button></div>
+
+<div id="results">running…</div>
+
+<script>
+  // Installed before the userscript so it catches anything thrown during its own startup.
+  window.__ifErrors = [];
+  addEventListener('error', (e) => window.__ifErrors.push(e.message));
+  addEventListener('unhandledrejection', (e) => window.__ifErrors.push(String(e.reason)));
+</script>
+<script src="../insta-filter.user.js"></script>
+<script>
+  // Must test actual rendering, not computed display: the script hides a post's *wrapper*
+  // div, and getComputedStyle(child).display stays "block" under a display:none ancestor.
+  const hidden = (el) => !el || el.getClientRects().length === 0;
+  const $ = (id) => document.getElementById(id);
+
+  const checks = [
+    ['Reels nav link hidden (href rule)',          () => hidden($('nav-reels'))],
+    ['Reels icon link hidden (:has + aria rule)',  () => hidden($('nav-reels-icon'))],
+    ['Explore nav link hidden',                    () => hidden($('nav-explore'))],
+    ['Home nav link still visible',                () => !hidden($('nav-home'))],
+    ['Messages nav link still visible',            () => !hidden($('nav-dm'))],
+    ['Sponsored post hidden (no <header> present)',() => hidden($('post-sponsored'))],
+    ['Normal post still visible',                  () => !hidden($('post-normal'))],
+    ['Caption mentioning "Sponsored" NOT hidden',  () => !hidden($('post-caption-trap'))],
+    ['Caption that is only "Sponsored" NOT hidden',() => !hidden($('post-caption-exact'))],
+    ['"Suggested for you" panel hidden',           () => hidden($('suggest-panel'))],
+    ['Suggested-posts divider hidden',             () => hidden($('tail-divider'))],
+    ['Post after the divider hidden',              () => hidden($('post-suggested-1'))],
+    ['Real post before the divider still visible', () => !hidden($('post-normal-2'))],
+    ['"Open the app" banner hidden',               () => hidden($('app-nag'))],
+    ['Badge mounted (script is alive)',            () => !!$('if-badge')],
+    ['Feed NOT mistaken for a reel overlay',
+      () => document.documentElement.dataset.ifOverlay === '0'],
+    ['No uncaught errors',                         () => window.__ifErrors.length === 0],
+  ];
+
+  setTimeout(() => {
+    let failed = 0;
+    const lines = checks.map(([name, fn]) => {
+      let ok = false;
+      try { ok = fn(); } catch (e) { ok = false; name += ` (threw: ${e.message})`; }
+      if (!ok) failed++;
+      return `<span class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</span>  ${name}`;
+    });
+    lines.push('', failed ? `<span class="fail">${failed} FAILED</span>` : '<span class="pass">all passed</span>');
+    document.getElementById('results').innerHTML = lines.join('\n');
+  }, 800);
+</script>

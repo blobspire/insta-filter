@@ -1,0 +1,80 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Insta Filter — reel overlay on a DM route</title>
+<style>
+  body { font: 14px -apple-system, system-ui, sans-serif; margin: 0; }
+  #thread { height: 200px; overflow-y: auto; background: #f6f6f6; }
+  #thread > div { height: 900px; }
+  #reel-stack { height: 100vh; overflow-y: auto; scroll-snap-type: y mandatory; }
+  #reel-stack > div { height: 100vh; scroll-snap-align: start; }
+  video { width: 100%; height: 100%; background: #222; }
+  #results { padding: 12px; font: 12px ui-monospace, Menlo, monospace; white-space: pre; }
+  .pass { color: #0a0; } .fail { color: #c00; font-weight: 700; }
+</style>
+
+<!--
+  Reproduces the bug seen on device. Served at /direct/t/FIXTURE1/ so the router classifies
+  it as "dm" — because that is what actually happens: opening a reel from a DM renders a
+  full-screen player in place and NEVER changes the URL. Every URL-driven containment was
+  therefore waiting on a navigation that never came, and swiping went straight into the
+  "Suggested" algorithmic stack.
+
+  Containment has to key off the DOM. It also must not break the DM thread itself, so the
+  document stays scrollable here — unlike on a real reel page.
+-->
+
+<main>
+  <div id="thread"><div>the DM conversation, which must stay scrollable</div></div>
+
+  <div id="reel-stack">
+    <div id="reel-1"><video></video></div>
+    <div id="reel-2"><video></video></div>
+    <div id="reel-3"><video></video></div>
+    <div id="reel-4"><video></video></div>
+  </div>
+</main>
+
+<div id="results">running…</div>
+
+<script>
+  window.__ifErrors = [];
+  addEventListener('error', (e) => window.__ifErrors.push(e.message));
+  addEventListener('unhandledrejection', (e) => window.__ifErrors.push(String(e.reason)));
+</script>
+<script src="/insta-filter.user.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const styleOf = (id, prop) => getComputedStyle($(id))[prop];
+
+  const checks = [
+    ['Route is still "dm" (URL never changed)',
+      () => document.documentElement.dataset.ifRoute === 'dm'],
+    ['Full-screen reel overlay detected',
+      () => document.documentElement.dataset.ifOverlay === '1'],
+    ['Reel stack found despite the dm route',
+      () => $('reel-stack').classList.contains('if-reel-scroller')],
+    ['Reel stack clamped (overflow hidden)',
+      () => styleOf('reel-stack', 'overflowY') === 'hidden'],
+    ['Scroll snapping disabled',
+      () => styleOf('reel-stack', 'scrollSnapType') === 'none'],
+    ['DM thread NOT tagged (plain overflow, no snap)',
+      () => !$('thread').classList.contains('if-reel-scroller')],
+    ['DM thread still scrollable',
+      () => styleOf('thread', 'overflowY') === 'auto'],
+    ['Document NOT clamped — DMs must still scroll',
+      () => getComputedStyle(document.body).overflowY !== 'hidden'],
+    ['No uncaught errors', () => window.__ifErrors.length === 0],
+  ];
+
+  setTimeout(() => {
+    let failed = 0;
+    const lines = checks.map(([name, fn]) => {
+      let ok = false;
+      try { ok = fn(); } catch (e) { ok = false; name += ` (threw: ${e.message})`; }
+      if (!ok) failed++;
+      return `<span class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</span>  ${name}`;
+    });
+    lines.push('', failed ? `<span class="fail">${failed} FAILED</span>` : '<span class="pass">all passed</span>');
+    document.getElementById('results').innerHTML = lines.join('\n');
+  }, 900);
+</script>
