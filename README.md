@@ -1,111 +1,97 @@
 # Insta Filter
 
-Removes Reels, Explore and the algorithmic feed from Instagram on an iPhone — without
-uninstalling the app, and without handing your account to a third party.
+**Instagram Reels are engineered to be hard to stop watching. This removes them — without
+removing Instagram.**
 
-**Everything runs on your device.** The script makes no network requests of its own, has no
-analytics and no remote config. It's one readable file you can audit in ten minutes.
+You keep your DMs, your friends' posts and your notifications. You lose the infinite
+scroll. A reel someone sends you still plays; it just doesn't lead anywhere.
 
-## What you get
+It runs entirely on your iPhone. No account, no server, no analytics, no remote config —
+one readable file that makes zero network requests of its own. Nothing about your Instagram
+ever leaves your device.
+
+## What changes
 
 | Before | After |
 |---|---|
 | Algorithmic feed with ads and suggested posts | Chronological feed of only the accounts you follow |
-| Reels tab one thumb-reach away | No Reels tab; `/reels/` redirects home |
-| Explore tab full of discovery bait | Explore is search only — the grid appears once you type |
-| A reel from a friend drops you into an infinite scroller | That reel plays; swiping up does **not** advance to the next one |
-| DMs | DMs, untouched |
+| Reels tab a thumb-reach away | No Reels tab; `/reels/` redirects home |
+| Explore full of discovery bait | Explore is search only — the grid appears once you type |
+| A friend's reel drops you into an endless stack | That reel plays; swiping up goes nowhere |
+| Messages | Messages, untouched |
 
-## How it works
+## Before you start
 
-Three independent layers. If one breaks, the others still work and you're never locked out
-of Instagram.
+**You need an iPhone, and you need Safari.** Safari extensions run only in Safari — Apple
+does not expose them to third-party iOS browsers, so this cannot work in Brave, Chrome or
+Firefox. They are WebKit shells with no access to installed extensions.
 
-```
-┌─ Layer 3 ─ Home screen ────────────────────────────────┐
-│  Shortcut "Instagram" → opens Safari at                │
-│  https://www.instagram.com/?variant=following          │
-└───────────────────────┬────────────────────────────────┘
-                        ▼
-┌─ Layer 1 ─ The filter (Userscripts extension, Safari) ─┐
-│  insta-filter.user.js @ document-start                 │
-│   · route gate   · CSS hide rules   · reel containment │
-└────────────────────────────────────────────────────────┘
+You can keep another browser as your default; see [step 5](#5-optional-open-instagram-automatically).
 
-┌─ Layer 2 ─ Native app containment (Shortcuts) ─────────┐
-│  "Instagram Is Opened" automation → bounce to Layer 3  │
-│  unless the 5-minute pass file is fresh                │
-└────────────────────────────────────────────────────────┘
-```
+Also worth knowing up front:
 
-The single most useful discovery: **`instagram.com/?variant=following` is an undocumented
-Instagram route** that serves a chronological, following-only feed already free of ads and
-suggested posts. We don't rebuild a feed — we redirect to that one.
+- **iOS 16.4 or later** is ideal. Userscripts itself needs 15.1+, but the stylesheet uses
+  the CSS `:has()` selector, which arrived in Safari 16.4. On older versions the Reels icon
+  may survive; the rest still works.
+- **You browse Instagram in Safari, not the app.** The native app can't be modified. It
+  stays installed so notifications keep working.
+- **No Xcode, no Apple Developer account, no code signing**, and nothing to reinstall every
+  seven days.
 
 ## Install
 
-See **[docs/ios-setup.md](docs/ios-setup.md)** for the full walkthrough. Short version:
+### 1. Install the Userscripts extension
 
-1. Install [Userscripts](https://apps.apple.com/us/app/userscripts/id1463298887) (free, open
-   source, no tracking) from the App Store.
-2. Point it at an iCloud Drive folder and copy `insta-filter.user.js` there.
-3. Settings → Safari → Extensions → Userscripts → enable, set instagram.com to **Allow**.
-4. Build the Shortcuts in **[shortcuts/README.md](shortcuts/README.md)**.
+[Userscripts](https://apps.apple.com/us/app/userscripts/id1463298887) from the App Store —
+free, [open source](https://github.com/quoid/userscripts), no tracking.
 
-No Xcode, no Apple Developer account, no code signing, nothing to re-install every 7 days.
+### 2. Give it a folder
 
-## How reel containment actually works
+Open the app and set its scripts directory to a folder under **On My iPhone** (Files app →
+On My iPhone → new folder, e.g. `Userscripts`).
 
-Worth recording, because the obvious design is wrong and cost four rewrites to disprove.
+> **Use local storage, not iCloud Drive.** iCloud evicts file *contents* to save space,
+> leaving a stub with the right name and size. Userscripts reads a stub as an empty
+> directory and reports "No matched userscripts", so the filter silently stops working.
+> This will happen to you eventually. Local files are never evicted.
 
-**Opening a reel from a DM does not navigate.** The URL stays at `/direct/t/<id>/` while a
-full-screen player opens over the thread, and swiping moves through "Suggested" reels —
-the algorithmic stack — without the path ever changing. Anything keyed to the URL is blind
-to it. Routing, redirects and route-gated CSS all sat waiting for a navigation that never
-came.
+### 3. Add the script
 
-**Clamping the scroll container does not work either.** The desktop reel page has a
-`scroll-snap-type: y mandatory` container, so clamping it looked right. On mobile the
-player does not appear to advance by scrolling at all, so `overflow: hidden`,
-`scroll-snap-type: none` and scroll listeners all had nothing to act on.
+Download [`insta-filter.user.js`](insta-filter.user.js) and put it in that folder. AirDrop
+from a Mac is the easiest route — save it to On My iPhone → your folder.
 
-**What works is blocking the gesture.** A capture-phase `touchmove` listener swallows
-upward swipes whenever a full-screen reel is open, which holds regardless of how Instagram
-implements the transition. Detection is deliberately crude and mechanism-independent: is a
-`<video>` filling the viewport? A reel is full-bleed; a feed video post is roughly square
-and far shorter than the threshold on a phone.
+### 4. Turn it on
 
-Downward swipes are left alone, so the player can still be dismissed and you are never
-trapped in it. The earlier scroll-container clamp is kept as belt and braces for the
-desktop reel page, where it does apply.
+**Settings → Safari → Extensions → Userscripts** → toggle on, then set **instagram.com** to
+**Allow**.
 
-## Why Userscripts, and not something more native
+Grant instagram.com specifically rather than "All Websites". Same result here, far smaller
+blast radius.
 
-Filtering a page requires reading and modifying that page. Nothing can hide Reels without
-access to Instagram's DOM, so the question is never "avoid page access" — it is "who holds
-it". The options, honestly compared:
+### 5. Optional: open Instagram automatically
 
-| Approach | Does the job? | Trust surface |
-|---|---|---|
-| **Userscripts** (chosen) | Everything | One open-source third-party extension, scoped to instagram.com only |
-| Our own Safari Web Extension | Everything | No third party — but needs Xcode, and free Apple signing expires every 7 days |
-| Content blocker | **No** | Strongest — declarative rules that cannot read the page at all |
-| Screen Time / DNS filtering | No | None, but cannot filter *within* a site |
+So that tapping the Instagram app lands you in the filtered version instead:
 
-**The safest option cannot do the job.** A content blocker is declarative: CSS hiding and
-URL blocking, no JavaScript. That rules out the `?variant=following` redirect, text-based
-ad scrubbing (CSS cannot match "Sponsored"), and — fatally — reel containment, which needs
-a scroll container clamped at runtime. It could block `/reels/` wholesale, but that also
-blocks the reel a friend sent, since both share the `/reels/<code>/` shape. The result
-would be "no reels at all", which is not what this project is for.
+**Shortcuts → Automation → + → App → Instagram → Is Opened → Run Immediately**, with one
+action: **Open URLs** → `https://www.instagram.com/?variant=following`
 
-**Residual risk, stated plainly:** you are trusting that the Userscripts App Store binary
-matches its published source, and that future updates stay honest. That risk is bounded by
-granting it **instagram.com only** — never "All Websites". The filter itself makes no
-network requests, has no remote config, and is one readable file.
+If Safari is **not** your default browser, use `x-safari-https://www.instagram.com/?variant=following`
+instead. That forces Safari and leaves your default alone. (Works on iOS 15, 17 and 18;
+reported broken on iOS 16.)
 
-**Migration is cheap.** `insta-filter.user.js` is an ordinary content script. Moving to a
-self-signed Safari Web Extension later is a packaging change, not a rewrite.
+More options — a home-screen icon, and a timed pass for when you genuinely need the native
+app — are in [shortcuts/README.md](shortcuts/README.md).
+
+> Fuller walkthrough, including the edit-on-Mac development loop and the iCloud pitfalls:
+> [docs/ios-setup.md](docs/ios-setup.md).
+
+### Check it worked
+
+Open `https://www.instagram.com/` in Safari. You should be redirected to `?variant=following`,
+see no Reels tab, and see a faint **`IF`** badge in the top-left corner.
+
+**No badge means it isn't running.** Go back to step 4 — iOS resets extension permissions
+more often than you'd expect.
 
 ## Escape hatches
 
@@ -113,76 +99,153 @@ self-signed Safari Web Extension later is a packaging change, not a rewrite.
 |---|---|
 | `instagram.com/?if=off` | Disable the filter for this Safari session |
 | `instagram.com/?if=on` | Re-enable it |
-| `instagram.com/?ifdebug=1` | Log a table of every rule and its live match count |
-
-A small `IF` badge in the bottom-left corner means the script is running. No badge means it
-isn't — check Settings → Safari → Extensions first.
+| `instagram.com/?ifdebug=1` | Replace the badge with a live diagnostic bar |
 
 ## Tuning
 
 Knobs at the top of `insta-filter.user.js`:
 
-- `allowExploreSearch` — keeps Explore reachable but strips it to the search box while that
-  box is empty. Set to `false` to block Explore outright.
-- `unmuteReels` — unmutes a reel when it opens, matching the native app. Instagram's web
-  player starts muted because browsers only autoplay silently.
-- `containReelGestures` — swallows upward swipes while a full-screen reel is open. This is
-  what stops one reel becoming twenty.
+| Option | Default | Effect |
+|---|---|---|
+| `allowExploreSearch` | `true` | Keeps Explore reachable but strips it to the search box. `false` blocks Explore outright. |
+| `unmuteReels` | `true` | Unmutes a reel when it opens, matching the native app. |
+| `containReelGestures` | `true` | Swallows upward swipes while a full-screen reel is open. This is what stops one reel becoming twenty. |
+| `hardScrollLock` | `false` | Extra clamping for the desktop reel page. Rarely needed. |
+| `badge` | `true` | The corner badge. Turn it off once you trust it. |
+| `home` | `/?variant=following` | Where "home" goes. |
 
-- `hardScrollLock` — set to `true` if you can still swipe to the next reel. Blocks the
-  vertical pan gesture outright, at the cost of scrolling inside the reel view.
-- `badge` — set to `false` once you trust it.
+## How it works
 
-## Maintenance
+The load-bearing discovery: **`instagram.com/?variant=following` is an undocumented
+Instagram route** serving a chronological, following-only feed that is already free of ads
+and suggested posts. The filter doesn't rebuild a feed — it redirects to that one.
 
-Instagram changes its DOM regularly, so selectors will break every few months. The health
-check exists to make that cheap: it remembers the highest match count each rule has ever
-seen and warns you when a rule that used to match something now matches nothing — so you
-learn *which* selector died, not just that "it stopped working".
+### Reel containment, and why the obvious designs fail
 
-See **[docs/debugging.md](docs/debugging.md)** for how to attach Safari Web Inspector to the
-phone and fix a stale selector in about ten minutes.
+This part took four rewrites, so the dead ends are worth recording.
 
-## Tests
+**Opening a reel from a DM does not navigate.** The URL stays at `/direct/t/<id>/` while a
+full-screen player opens over the thread, and swiping moves through "Suggested" reels
+without the path ever changing. Anything keyed to the URL is blind to it — routing,
+redirects and route-gated CSS all sat waiting for a navigation that never came.
+
+**Clamping the scroll container doesn't work either.** The desktop reel page has a
+`scroll-snap-type: y mandatory` container, so clamping it looked right. On mobile the
+player doesn't appear to advance by scrolling at all, so `overflow: hidden`, disabling snap
+and scroll listeners all had nothing to act on.
+
+**What works is blocking the gesture.** A capture-phase `touchmove` listener swallows
+upward swipes whenever a full-screen reel is open, which holds regardless of how Instagram
+implements the transition. Detection is deliberately crude and mechanism-independent: is a
+`<video>` covering the viewport? Downward swipes are left alone, so the player can still be
+dismissed and you're never trapped.
+
+### Selectors come from measurement, not guesswork
+
+Instagram's class names are obfuscated and rotate constantly, so every rule keys off
+something durable — a route `href`, an `aria-label`, exact text, or geometry. Three
+findings shaped the code:
+
+- **Posts have no `<header>`**, so ad markers are scoped *geometrically* — a marker sits in
+  the post's top chrome, a caption sits below the media. Combined with exact text matching,
+  a friend's caption reading "this felt Sponsored" is never mistaken for an ad.
+- **Reel permalinks are `/reels/<code>/`** — plural, sharing a prefix with the infinite
+  feed at `/reels/`. Getting this wrong meant a reel a friend sent was redirected away
+  instead of played.
+- **A vertical scroll-snap container** distinguishes a reel stack from a DM conversation
+  list, which otherwise look identical.
+
+## Why a userscript, and not something more native
+
+Filtering a page requires reading and modifying that page. Nothing can hide Reels without
+access to Instagram's DOM, so the question is never "avoid page access" — it's "who holds
+it".
+
+| Approach | Does the job? | Trust surface |
+|---|---|---|
+| **Userscripts** (chosen) | Everything | One open-source third-party extension, scoped to instagram.com only |
+| Your own Safari Web Extension | Everything | No third party — but needs Xcode, and free Apple signing expires every 7 days |
+| Content blocker | **No** | Strongest — declarative rules that cannot read the page at all |
+| Screen Time / DNS filtering | No | None, but cannot filter *within* a site |
+
+**The safest option can't do the job.** A content blocker is declarative — CSS hiding and
+URL blocking, no JavaScript. That rules out the `?variant=following` redirect, text-based
+ad scrubbing, and, fatally, reel containment. It could block `/reels/` wholesale, but that
+also blocks the reel a friend sent, since both share the `/reels/<code>/` shape.
+
+**Residual risk, stated plainly:** you're trusting that the Userscripts App Store binary
+matches its published source. That risk is bounded by granting it instagram.com only. The
+filter itself makes no network requests and has no remote config.
+
+**Migration is cheap.** `insta-filter.user.js` is an ordinary content script; moving to a
+self-signed Safari Web Extension later is a packaging change, not a rewrite.
+
+## Known limits
+
+- **`?variant=following` is undocumented** and Instagram could remove it. The
+  Sponsored/Suggested scrubber is the fallback — it cleans the algorithmic feed, just less
+  perfectly.
+- **Mobile web DMs lack some features** — disappearing media, some voice and call
+  features. The native app is still there for those; see the timed pass in
+  [shortcuts/README.md](shortcuts/README.md).
+- **The bounce automation can't tell why the app opened**, so a notification tap lands on
+  the same page as a deliberate launch.
+- **Selectors break.** Instagram ships DOM changes regularly. Expect occasional
+  maintenance; the tooling below is built to make it cheap.
+- **iOS sometimes resets extension permissions** after an update. The badge tells you.
+
+## When it breaks
+
+`instagram.com/?ifdebug=1` replaces the badge with a live diagnostic bar:
+
+```
+IF v0.5.0 dm ov:Y sc:1 x:0 doc:N /direct/t/<id>/
+```
+
+Version loaded, route, whether a reel overlay was detected, containers clamped, elements
+hidden, and the path the router saw. There's no console on iOS without tethering to a Mac,
+so this is the primary diagnostic.
+
+The script also remembers the highest match count each rule has ever produced and warns
+when a rule that used to match something now matches nothing — naming the selector that
+died rather than leaving you to hunt.
+
+[docs/debugging.md](docs/debugging.md) covers attaching Safari Web Inspector to the phone
+and fixing a stale selector, and `tools/audit.js` is a read-only console script that
+reports which selectors still match live Instagram. Its output is shape-only — no
+usernames, IDs or post content — so it's safe to paste into an issue.
+
+## Development
 
 ```sh
-npm test          # both suites
-npm run test:unit # pure logic, no browser needed
-npm run test:dom  # runs the fixture in headless Chrome
+npm test          # everything
+npm run test:unit # pure logic, no browser
+npm run test:dom  # fixtures in headless Chrome
 ```
 
 Zero dependencies — the filter has none, and neither does the test harness.
 
-- **Unit** (`test/route.test.mjs`) — route classification, the reel-permalink parser, and
-  stylesheet brace balance. That last one matters: a single unbalanced brace would silently
-  disable every hide rule after it.
-- **DOM** (`test/fixture.html` + `test/dom.mjs`) — a fake Instagram page the script actually
-  runs against, checking that the right things get hidden *and the wrong things don't*. The
-  assertion that earns its keep: a friend's caption containing the word "Sponsored" must not
-  get the post scrubbed.
+**4 unit tests** cover route classification, the reel-permalink parser, and stylesheet
+brace balance (one unbalanced brace would silently disable every rule after it).
 
-`test:dom` skips cleanly if no Chromium-family browser is installed. You can also just open
-`test/fixture.html` in any browser and read the PASS/FAIL list.
+**55 DOM checks** run the real script against five fixtures in headless Chrome, each
+modelled on measured Instagram behaviour:
+
+| Fixture | Guards against |
+|---|---|
+| `fixture.html` | Ads hidden, but a caption saying "Sponsored" is not; a portrait video post is not mistaken for a reel |
+| `reel-fixture.html` | Reel page clamped, comments still scrollable |
+| `reel-ambiguous.html` | Refusing to clamp when the right container is ambiguous |
+| `dm-reel-overlay.html` | A reel overlay on a DM route — the case that broke four designs |
+| `explore-fixture.html` | Explore stripped to search, and restored the moment you type |
+
+`test:dom` skips cleanly without a Chromium-family browser. You can also open any fixture
+in a browser and read the PASS/FAIL list.
+
+Pull requests welcome, particularly selector fixes when Instagram moves things. If you're
+reporting a breakage, `?ifdebug=1` output and an `audit.js` dump are the two most useful
+things to include.
 
 ## Licence
 
 MIT — see [LICENSE](LICENSE). Use it, fork it, fix the selectors when Instagram moves them.
-
-## Requires Safari
-
-Safari extensions run only in Safari. Apple does not expose them to third-party iOS
-browsers, so this cannot work in Brave, Chrome or Firefox — they are WebKit shells with no
-access to installed extensions.
-
-If Safari is not your default browser you can still use this: point the Shortcuts
-automation at `x-safari-https://...` instead of `https://...`, which forces Safari while
-leaving your default alone. See [shortcuts/README.md](shortcuts/README.md).
-
-## Known limits
-
-- **`?variant=following` is undocumented** and Instagram could remove it. The Sponsored /
-  Suggested scrubber is the fallback — it cleans the algorithmic feed, just less perfectly.
-- **Mobile web DMs lack some features** (disappearing media, some voice and call features).
-  The 5-minute pass shortcut is the escape hatch to the real app.
-- **The bounce automation also fires on notification taps.** The pass file softens it.
-- **iOS sometimes resets extension permissions** after an update. The badge tells you.
