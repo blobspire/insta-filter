@@ -31,8 +31,24 @@ the last page. The whole point is that the filtered version is the one within th
 > The tradeoff: a brief flash of the Shortcuts app on launch. Unavoidable, and you stop
 > noticing it.
 
-> **Check your default browser.** `Open URLs` opens the *default* browser. If that's Chrome
-> or Firefox, the Safari extension never runs. Settings → Apps → Safari → Default Browser App.
+> **If Safari is not your default browser, read this.** `Open URLs` hands the URL to the
+> *default* browser, and Safari extensions only run in Safari — Apple does not expose them
+> to Brave, Chrome, Firefox or anything else, and that is not changing. Landing in another
+> browser means unfiltered Instagram with no indication why.
+>
+> You do not have to change your default. iOS has an undocumented scheme that forces Safari:
+>
+> ```
+> x-safari-https://www.instagram.com/?variant=following
+> ```
+>
+> Use that as the `Open URLs` value and your default browser is left alone. Reported working
+> on iOS 15, 17 and 18, and reported broken on iOS 16 — if you are on 16, you will have to
+> switch your default to Safari instead (Settings → Apps → Safari → Default Browser App).
+
+> **A leak worth knowing about.** The automation covers opening the Instagram app. It does
+> not cover tapping an Instagram link from another app, which still goes to your default
+> browser — unfiltered. If that happens often, making Safari the default closes the gap.
 
 ---
 

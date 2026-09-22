@@ -157,6 +157,16 @@ Zero dependencies — the filter has none, and neither does the test harness.
 `test:dom` skips cleanly if no Chromium-family browser is installed. You can also just open
 `test/fixture.html` in any browser and read the PASS/FAIL list.
 
+## Requires Safari
+
+Safari extensions run only in Safari. Apple does not expose them to third-party iOS
+browsers, so this cannot work in Brave, Chrome or Firefox — they are WebKit shells with no
+access to installed extensions.
+
+If Safari is not your default browser you can still use this: point the Shortcuts
+automation at `x-safari-https://...` instead of `https://...`, which forces Safari while
+leaving your default alone. See [shortcuts/README.md](shortcuts/README.md).
+
 ## Known limits
 
 - **`?variant=following` is undocumented** and Instagram could remove it. The Sponsored /
