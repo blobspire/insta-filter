@@ -1,12 +1,12 @@
 {
   "name": "insta-filter",
   "version": "0.1.0",
-  "private": true,
   "description": "Strips Reels, Explore and the algorithmic feed from Instagram on iOS Safari. Runs entirely on-device.",
   "type": "module",
   "scripts": {
     "test": "npm run test:unit && npm run test:dom",
     "test:unit": "node --test test/*.test.mjs",
     "test:dom": "node test/dom.mjs"
-  }
+  },
+  "license": "MIT"
 }

@@ -157,6 +157,10 @@ Zero dependencies — the filter has none, and neither does the test harness.
 `test:dom` skips cleanly if no Chromium-family browser is installed. You can also just open
 `test/fixture.html` in any browser and read the PASS/FAIL list.
 
+## Licence
+
+MIT — see [LICENSE](LICENSE). Use it, fork it, fix the selectors when Instagram moves them.
+
 ## Requires Safari
 
 Safari extensions run only in Safari. Apple does not expose them to third-party iOS
