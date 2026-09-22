@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Insta Filter
 // @namespace    local.insta-filter
-// @version      0.4.0
+// @version      0.4.1
 // @description  Strips Reels, Explore and the algorithmic feed from Instagram. Runs entirely on-device; makes no network requests of its own.
 // @match        https://www.instagram.com/*
 // @match        https://instagram.com/*
@@ -385,15 +385,22 @@ div[role="button"]:has(svg[aria-label="Explore"]) { display: none !important; }
 
   /**
    * Is a full-screen reel player open? Deliberately independent of both the URL and the
-   * swipe mechanism: it just asks whether a video is filling the viewport.
+   * swipe mechanism: it asks whether a video is covering the viewport.
    *
-   * A reel is full-bleed. A video post in the feed is roughly square, so on a tall phone
-   * (390x844, say) it is about 390px tall against a 506px threshold — comfortably below.
+   * "Covering" has to mean position, not just size. An earlier version tested height alone
+   * and broke scrolling on the feed: a portrait 4:5 video post is around 70% of viewport
+   * height on a phone, which cleared the threshold, and off-screen videos counted too since
+   * height is position-independent. A real player spans the viewport top to bottom.
    */
   function reelOverlayPresent() {
+    // The following feed is where scrolling must never break, and by construction it holds
+    // no reels — that is what ?variant=following buys. Never arm there.
+    if (document.documentElement.dataset.ifRoute === 'home') return false;
+
     for (const video of document.querySelectorAll('video')) {
       const r = video.getBoundingClientRect();
-      if (r.height > innerHeight * 0.6 && r.width > innerWidth * 0.5) return true;
+      const spansViewport = r.top <= innerHeight * 0.1 && r.bottom >= innerHeight * 0.9;
+      if (spansViewport && r.width > innerWidth * 0.5) return true;
     }
     return false;
   }
@@ -653,7 +660,7 @@ div[role="button"]:has(svg[aria-label="Explore"]) { display: none !important; }
 
   // ---------------------------------------------------------------- badge
 
-  const VERSION = '0.4.0';
+  const VERSION = '0.4.1';
 
   // Debug mode gets a full-width bar at the top, not the subtle corner badge. On a phone the
   // corner badge sits behind Instagram's bottom nav and is invisible against a dark video —

@@ -8,6 +8,10 @@
   article { border-bottom: 1px solid #eee; }
   .top { display: flex; gap: 8px; padding: 8px 12px; font-weight: 600; height: 20px; }
   .media { height: 300px; background: #f2f2f2; }
+  /* A portrait 4:5 video post, which is what actually broke feed scrolling: tall enough to
+     clear a naive "is a video filling the screen" check, but not a full-screen reel. */
+  .media-tall { height: 70vh; background: #ddd; }
+  .media-tall video { width: 100%; height: 100%; background: #222; }
   .caption { padding: 10px 12px; }
   .nag { position: fixed; bottom: 0; left: 0; right: 0; background: #222; color: #fff; padding: 12px; }
   #results { padding: 12px; font: 12px ui-monospace, Menlo, monospace; white-space: pre; }
@@ -41,6 +45,12 @@
   </div>
 
   <div id="feed">
+    <div><article id="post-video-portrait">
+      <div class="top"><span>erin</span></div>
+      <div class="media-tall"><video></video></div>
+      <div class="caption">a tall portrait video post — must not look like a reel</div>
+    </article></div>
+
     <div><article id="post-normal">
       <div class="top"><span>alice</span></div>
       <div class="media"></div>
@@ -115,8 +125,10 @@
     ['Real post before the divider still visible', () => !hidden($('post-normal-2'))],
     ['"Open the app" banner hidden',               () => hidden($('app-nag'))],
     ['Badge mounted (script is alive)',            () => !!$('if-badge')],
-    ['Feed NOT mistaken for a reel overlay',
+    ['Portrait video post NOT mistaken for a reel overlay',
       () => document.documentElement.dataset.ifOverlay === '0'],
+    ['Portrait video post still visible',
+      () => !hidden($('post-video-portrait'))],
     ['No uncaught errors',                         () => window.__ifErrors.length === 0],
   ];
 

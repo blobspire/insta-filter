@@ -5,7 +5,7 @@
   body { font: 14px -apple-system, system-ui, sans-serif; margin: 0; }
   #thread { height: 200px; overflow-y: auto; background: #f6f6f6; }
   #thread > div { height: 900px; }
-  #reel-stack { height: 100vh; overflow-y: auto; scroll-snap-type: y mandatory; }
+  #reel-stack { position: fixed; inset: 0; overflow-y: auto; scroll-snap-type: y mandatory; }
   #reel-stack > div { height: 100vh; scroll-snap-align: start; }
   video { width: 100%; height: 100%; background: #222; }
   #results { padding: 12px; font: 12px ui-monospace, Menlo, monospace; white-space: pre; }
