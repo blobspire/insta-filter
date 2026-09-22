@@ -112,7 +112,7 @@
   const checks = [
     ['Reels nav link hidden (href rule)',          () => hidden($('nav-reels'))],
     ['Reels icon link hidden (:has + aria rule)',  () => hidden($('nav-reels-icon'))],
-    ['Explore nav link hidden',                    () => hidden($('nav-explore'))],
+    ['Explore nav link VISIBLE (search is allowed)', () => !hidden($('nav-explore'))],
     ['Home nav link still visible',                () => !hidden($('nav-home'))],
     ['Messages nav link still visible',            () => !hidden($('nav-dm'))],
     ['Sponsored post hidden (no <header> present)',() => hidden($('post-sponsored'))],

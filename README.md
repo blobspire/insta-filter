@@ -12,7 +12,7 @@ analytics and no remote config. It's one readable file you can audit in ten minu
 |---|---|
 | Algorithmic feed with ads and suggested posts | Chronological feed of only the accounts you follow |
 | Reels tab one thumb-reach away | No Reels tab; `/reels/` redirects home |
-| Explore tab | No Explore tab; `/explore/` redirects home |
+| Explore tab full of discovery bait | Explore is search only — the grid appears once you type |
 | A reel from a friend drops you into an infinite scroller | That reel plays; swiping up does **not** advance to the next one |
 | DMs | DMs, untouched |
 
@@ -120,7 +120,14 @@ isn't — check Settings → Safari → Extensions first.
 
 ## Tuning
 
-Two knobs at the top of `insta-filter.user.js`:
+Knobs at the top of `insta-filter.user.js`:
+
+- `allowExploreSearch` — keeps Explore reachable but strips it to the search box while that
+  box is empty. Set to `false` to block Explore outright.
+- `unmuteReels` — unmutes a reel when it opens, matching the native app. Instagram's web
+  player starts muted because browsers only autoplay silently.
+- `containReelGestures` — swallows upward swipes while a full-screen reel is open. This is
+  what stops one reel becoming twenty.
 
 - `hardScrollLock` — set to `true` if you can still swipe to the next reel. Blocks the
   vertical pan gesture outright, at the cost of scrolling inside the reel view.

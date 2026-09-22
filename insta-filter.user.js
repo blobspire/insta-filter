@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Insta Filter
 // @namespace    local.insta-filter
-// @version      0.4.1
+// @version      0.5.0
 // @description  Strips Reels, Explore and the algorithmic feed from Instagram. Runs entirely on-device; makes no network requests of its own.
 // @match        https://www.instagram.com/*
 // @match        https://instagram.com/*
@@ -54,6 +54,15 @@
     // reason every scroll-based attempt did nothing. Downward swipes stay live so the
     // player can still be dismissed.
     containReelGestures: true,
+
+    // Unmute a reel when it opens, matching the native app. Instagram's web player starts
+    // muted because browsers only allow autoplay without sound. iOS may refuse a
+    // programmatic unmute outside a user gesture, in which case one tap does it.
+    unmuteReels: true,
+
+    // Keep Explore reachable for its search box, but strip the discovery grid — the grid is
+    // the addictive part, searching for an account is not.
+    allowExploreSearch: true,
   };
 
   // ---------------------------------------------------------------- utilities
@@ -99,15 +108,30 @@
   // ------------------------------------------------------- module 1: STYLE
 
   const CSS = `
-/* --- navigation: Reels and Explore, by route rather than by obfuscated class --- */
-a[href="/reels/"], a[href^="/reels/"],
-a[href="/explore/"], a[href^="/explore/"] { display: none !important; }
+/* --- navigation: by route rather than by obfuscated class --- */
+/* Exact match only. A /reels/ PREFIX rule would also hide links to individual reels, which
+   is how a reel shared in a DM is reached. */
+a[href="/reels/"] { display: none !important; }
 
 /* :has() lets us hide the ancestor link of an icon. Safari 16.4+. */
 a:has(svg[aria-label="Reels"]),
-a:has(svg[aria-label="Explore"]),
-div[role="button"]:has(svg[aria-label="Reels"]),
-div[role="button"]:has(svg[aria-label="Explore"]) { display: none !important; }
+div[role="button"]:has(svg[aria-label="Reels"]) { display: none !important; }
+
+/* Explore stays reachable when CONFIG.allowExploreSearch is on — the grid is stripped on
+   the page itself instead, which keeps the search box usable. */
+:root:not(.if-explore-ok) a[href="/explore/"],
+:root:not(.if-explore-ok) a[href^="/explore/"],
+:root:not(.if-explore-ok) a:has(svg[aria-label="Explore"]),
+:root:not(.if-explore-ok) div[role="button"]:has(svg[aria-label="Explore"]) {
+  display: none !important;
+}
+
+/* Explore with an empty search box: hide everything that is not the search box. As soon as
+   something is typed the page is restored, so results render normally and we never need to
+   know where Instagram puts them. */
+:root[data-if-route="explore"][data-if-explore="idle"] .if-explore-content {
+  display: none !important;
+}
 
 /* --- blocked routes: keep the page blank until the redirect lands, so no flash --- */
 :root[data-if-route="blocked"] body { display: none !important; }
@@ -160,6 +184,7 @@ div[role="button"]:has(svg[aria-label="Explore"]) { display: none !important; }
   })();
 
   if (CONFIG.hardScrollLock) document.documentElement.classList.add('if-hard-lock');
+  if (CONFIG.allowExploreSearch) document.documentElement.classList.add('if-explore-ok');
 
   // ------------------------------------------------------- module 2: ROUTER
 
@@ -192,7 +217,7 @@ div[role="button"]:has(svg[aria-label="Explore"]) { display: none !important; }
     const p = location.pathname;
     if (reelShortcode(p)) return 'reel';
     if (/^\/reels(\/|$)/.test(p)) return 'blocked';
-    if (/^\/explore(\/|$)/.test(p)) return 'blocked';
+    if (/^\/explore(\/|$)/.test(p)) return CONFIG.allowExploreSearch ? 'explore' : 'blocked';
     if (/^\/direct(\/|$)/.test(p)) return 'dm';
     if (p === '/') return 'home';
     return 'pass';
@@ -453,6 +478,65 @@ div[role="button"]:has(svg[aria-label="Explore"]) { display: none !important; }
     return 1;
   }
 
+  // ------------------------------------------------ module 3c: EXPLORE / UNMUTE
+
+  /**
+   * Strip Explore back to its search box.
+   *
+   * Rather than trying to identify the discovery grid — which would mean knowing Instagram's
+   * layout and re-learning it every redesign — everything in <main> that does not contain
+   * the search input is hidden, and only while the box is empty. Type anything and the page
+   * is restored wholesale, so search results render normally wherever Instagram puts them.
+   */
+  function stripExplore() {
+    if (document.documentElement.dataset.ifRoute !== 'explore') return 0;
+    const main = document.querySelector('main');
+    if (!main) return 0;
+
+    const input = main.querySelector('input');
+    const searching = !!(input && input.value.trim());
+    document.documentElement.dataset.ifExplore = searching ? 'searching' : 'idle';
+
+    if (!input) return 0;  // no search box found — leave the page alone rather than blank it
+
+    let tagged = 0;
+    for (const child of main.children) {
+      if (child.contains(input)) continue;
+      child.classList.add('if-explore-content');
+      tagged++;
+    }
+    return tagged;
+  }
+
+  // Typing does not mutate the DOM in a way the MutationObserver sees, so the search box
+  // needs its own trigger to bring the page back.
+  addEventListener('input', () => { lastScrub = 0; scheduleScrub(); },
+    { capture: true, passive: true });
+
+  // Unmute once per video. Once only, so that deliberately muting a reel sticks.
+  const unmuted = new WeakSet();
+
+  function unmuteReelVideo() {
+    if (!CONFIG.unmuteReels) return 0;
+    if (document.documentElement.dataset.ifOverlay !== '1') return 0;
+
+    let count = 0;
+    for (const video of document.querySelectorAll('video')) {
+      if (unmuted.has(video)) continue;
+      const r = video.getBoundingClientRect();
+      if (!(r.top <= innerHeight * 0.1 && r.bottom >= innerHeight * 0.9)) continue;
+
+      unmuted.add(video);
+      try {
+        video.muted = false;
+        video.defaultMuted = false;
+        if (video.volume === 0) video.volume = 1;
+        count++;
+      } catch { /* iOS may refuse outside a user gesture; a tap will do it */ }
+    }
+    return count;
+  }
+
   // ----------------------------------------------------- module 4: SCRUBBER
 
   // Exact matches only. A substring search would eat a friend's caption that happens to
@@ -599,16 +683,30 @@ div[role="button"]:has(svg[aria-label="Explore"]) { display: none !important; }
   let scrubQueued = false;
   let lastScrub = 0;
 
+  const MIN_SCRUB_INTERVAL = 200;
+
   function scheduleScrub() {
     if (scrubQueued) return;
     scrubQueued = true;
-    requestAnimationFrame(() => {
+
+    const run = () => {
+      if (!scrubQueued) return;   // whichever timer wins, the other becomes a no-op
       scrubQueued = false;
       const now = Date.now();
-      if (now - lastScrub < 200) { setTimeout(scheduleScrub, 200); return; }
+      if (now - lastScrub < MIN_SCRUB_INTERVAL) {
+        setTimeout(scheduleScrub, MIN_SCRUB_INTERVAL);
+        return;
+      }
       lastScrub = now;
       runScrub();
-    });
+    };
+
+    // A dropped requestAnimationFrame used to strand `scrubQueued` at true, which killed
+    // every subsequent scrub for the life of the page — the filter would appear to work on
+    // load and then quietly stop reacting to anything. Safari throttles rAF in background
+    // tabs, so this is not hypothetical. The timer is the backstop.
+    requestAnimationFrame(run);
+    setTimeout(run, 100);
   }
 
   function runScrub() {
@@ -619,6 +717,8 @@ div[role="button"]:has(svg[aria-label="Explore"]) { display: none !important; }
     // Always: the overlay is not tied to a route.
     containReelStack();
     document.documentElement.dataset.ifOverlay = reelOverlayPresent() ? '1' : '0';
+    unmuteReelVideo();
+    stripExplore();
     if (document.documentElement.dataset.ifRoute === 'reel') tagReelScroller();
     updateBadge();
   }
@@ -660,7 +760,7 @@ div[role="button"]:has(svg[aria-label="Explore"]) { display: none !important; }
 
   // ---------------------------------------------------------------- badge
 
-  const VERSION = '0.4.1';
+  const VERSION = '0.5.0';
 
   // Debug mode gets a full-width bar at the top, not the subtle corner badge. On a phone the
   // corner badge sits behind Instagram's bottom nav and is invisible against a dark video —

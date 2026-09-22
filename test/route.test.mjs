@@ -39,18 +39,22 @@ function extractConst(name) {
   return match[0];
 }
 
-/** Build a sandbox with a stubbed location, then eval the named functions into it. */
+/**
+ * Build a sandbox with a stubbed location, then eval the named functions into it.
+ * `CONFIG` is stubbed rather than extracted so each flag can be exercised both ways.
+ */
 function load(names, consts = []) {
   const src = [...consts.map(extractConst), ...names.map(extractFunction)].join('\n');
   // eslint-disable-next-line no-new-func
   return new Function(
     'locationStub',
+    'CONFIG',
     `const location = locationStub; ${src}; return { ${names.join(', ')} };`,
   );
 }
 
 const factory = load(['reelShortcode', 'computeRoute'], ['REELS_SUBROUTES']);
-const at = (pathname) => factory({ pathname });
+const at = (pathname, config = { allowExploreSearch: true }) => factory({ pathname }, config);
 
 test('reelShortcode parses the permalink shapes Instagram actually serves', () => {
   const { reelShortcode } = at('/');
@@ -92,9 +96,6 @@ test('computeRoute classifies every route we care about', () => {
     ['/reels', 'blocked'],
     ['/reels/audio/12345/', 'blocked'],
     ['/reels/audio/', 'blocked'],
-    ['/explore/', 'blocked'],
-    ['/explore', 'blocked'],
-    ['/explore/tags/cats/', 'blocked'],
 
     // messaging is untouched
     ['/direct/inbox/', 'dm'],
@@ -112,6 +113,17 @@ test('computeRoute classifies every route we care about', () => {
 
   for (const [pathname, expected] of cases) {
     assert.equal(at(pathname).computeRoute(), expected, `${pathname} should be "${expected}"`);
+  }
+});
+
+test('Explore is its own route when search is allowed, blocked when not', () => {
+  // Explore stays reachable for its search box: searching for an account is not the
+  // addictive part, the discovery grid is — and that gets stripped on the page itself.
+  for (const path of ['/explore/', '/explore', '/explore/tags/cats/']) {
+    assert.equal(at(path, { allowExploreSearch: true }).computeRoute(), 'explore',
+      `${path} should be "explore" when search is allowed`);
+    assert.equal(at(path, { allowExploreSearch: false }).computeRoute(), 'blocked',
+      `${path} should be "blocked" when search is not allowed`);
   }
 });
 

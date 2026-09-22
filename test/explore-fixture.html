@@ -1,0 +1,83 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Insta Filter — explore</title>
+<style>
+  body { font: 14px -apple-system, system-ui, sans-serif; margin: 0; }
+  #searchbar { padding: 10px; border-bottom: 1px solid #ddd; }
+  #searchbar input { width: 90%; padding: 8px; font-size: 16px; }
+  #grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+  #grid > div { height: 120px; background: #ccc; }
+  #results > div { padding: 8px; border-bottom: 1px solid #eee; }
+  #results-tally { padding: 12px; font: 12px ui-monospace, Menlo, monospace; white-space: pre; }
+  .pass { color: #0a0; } .fail { color: #c00; font-weight: 700; }
+</style>
+
+<!--
+  Explore, reduced to its search box.
+
+  The discovery grid is the addictive part; searching for an account is not. Rather than
+  identifying the grid — which would mean tracking Instagram's layout forever — everything
+  in <main> that does not contain the search input is hidden, and only while the box is
+  empty. Typing restores the page wholesale, so results render wherever Instagram puts them
+  without the filter needing to know.
+-->
+
+<main>
+  <div id="searchbar"><input type="text" placeholder="Search"></div>
+  <div id="grid">
+    <div></div><div></div><div></div><div></div><div></div><div></div>
+  </div>
+  <div id="results"><div>search results would render around here</div></div>
+</main>
+
+<div id="results-tally">running…</div>
+
+<script>
+  window.__ifErrors = [];
+  addEventListener('error', (e) => window.__ifErrors.push(e.message));
+  addEventListener('unhandledrejection', (e) => window.__ifErrors.push(String(e.reason)));
+</script>
+<script src="/insta-filter.user.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const visible = (el) => !!el && el.getClientRects().length > 0;
+  const lines = [];
+  const check = (name, fn) => {
+    let ok = false;
+    try { ok = fn(); } catch (e) { ok = false; name += ` (threw: ${e.message})`; }
+    lines.push(`<span class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</span>  ${name}`);
+  };
+
+  setTimeout(() => {
+    // Phase 1: empty search box — only the search box should survive.
+    check('Route is "explore"',            () => document.documentElement.dataset.ifRoute === 'explore');
+    check('Search box visible',            () => visible($('searchbar')));
+    check('Discovery grid hidden',         () => !visible($('grid')));
+    check('Other content hidden',          () => !visible($('results')));
+
+    // Phase 2: type something — the page must come back so results can render.
+    const input = document.querySelector('#searchbar input');
+    input.value = 'someaccount';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    setTimeout(() => {
+      check('Typing restores the grid area', () => visible($('grid')));
+      check('Typing restores results area',  () => visible($('results')));
+      check('Search box still visible',      () => visible($('searchbar')));
+
+      // Phase 3: clear it — back to just the search box.
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+
+      setTimeout(() => {
+        check('Clearing hides content again', () => !visible($('grid')));
+        check('No uncaught errors',           () => window.__ifErrors.length === 0);
+
+        const failed = lines.filter((l) => l.includes('>FAIL<')).length;
+        lines.push('', failed ? `<span class="fail">${failed} FAILED</span>`
+                              : '<span class="pass">all passed</span>');
+        $('results-tally').innerHTML = lines.join('\n');
+      }, 500);
+    }, 500);
+  }, 800);
+</script>

@@ -37,6 +37,7 @@ const PAGES = [
   { name: 'reel page — snap scroller', path: '/reels/SNAP00001/' },
   { name: 'reel page — ambiguous, no snap', path: '/reels/AMBIG0001/' },
   { name: 'reel overlay on a DM route', path: '/direct/t/FIXTURE1/' },
+  { name: 'explore reduced to search', path: '/explore/' },
 ];
 
 // Which fixture a /reels/<code>/ request serves. The codes are arbitrary but must look like
@@ -65,6 +66,8 @@ const server = createServer(async (req, res) => {
     rel = REEL_FIXTURES[pathname.split('/')[2]] ?? 'test/reel-fixture.html';
   } else if (pathname.startsWith('/direct/')) {
     rel = 'test/dm-reel-overlay.html';
+  } else if (pathname.startsWith('/explore')) {
+    rel = 'test/explore-fixture.html';
   } else {
     rel = normalize(decodeURIComponent(pathname)).replace(/^(\.\.[/\\])+/, '');
   }
@@ -95,7 +98,8 @@ try {
       `http://127.0.0.1:${port}${page.path}`,
     ], { maxBuffer: 32 * 1024 * 1024 });
 
-    const results = stdout.match(/<div id="results">([\s\S]*?)<\/div>/);
+    const results = stdout.match(/<div id="results-tally">([\s\S]*?)<\/div>/)
+      ?? stdout.match(/<div id="results">([\s\S]*?)<\/div>/);
     if (!results) {
       console.error(`FAIL  ${page.name}: no results block — did the page load?`);
       totalFailures++;
