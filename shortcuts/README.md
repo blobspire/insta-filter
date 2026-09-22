@@ -42,9 +42,10 @@ the last page. The whole point is that the filtered version is the one within th
 > x-safari-https://www.instagram.com/?variant=following
 > ```
 >
-> Use that as the `Open URLs` value and your default browser is left alone. Reported working
-> on iOS 15, 17 and 18, and reported broken on iOS 16 — if you are on 16, you will have to
-> switch your default to Safari instead (Settings → Apps → Safari → Default Browser App).
+> Use that as the `Open URLs` value and your default browser is left alone. **Confirmed
+> working on device** with Brave set as the default browser. Reported working on iOS 15, 17
+> and 18 and reported broken on iOS 16 — if you are on 16, switch your default to Safari
+> instead (Settings → Apps → Safari → Default Browser App).
 
 > **A leak worth knowing about.** The automation covers opening the Instagram app. It does
 > not cover tapping an Instagram link from another app, which still goes to your default
