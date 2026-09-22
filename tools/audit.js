@@ -13,6 +13,39 @@
  */
 
 (() => {
+  /**
+   * Everything reported is shape, never content.
+   *
+   * This output is meant to be pasted into a bug report, so it must not carry anything
+   * identifying. Raw paths would expose DM conversation ids and post shortcodes, and the
+   * links inside a post would expose the usernames of accounts you follow. Both are
+   * reduced to placeholders below: `/direct/t/<id>/`, `/p/<code>/`, `/<user>/`.
+   */
+  const KNOWN_SEGMENTS = new Set([
+    'explore', 'reels', 'reel', 'direct', 'accounts', 'stories', 'p', 'inbox', 't',
+    'audio', 'tags', 'following', 'followers',
+  ]);
+
+  // Position-aware, because a username and a post shortcode are not distinguishable by
+  // pattern alone — and the shape is the whole diagnostic value. What follows /p/ or
+  // /reels/ is a code; a bare leading segment is a username.
+  const CODE_PARENTS = new Set(['p', 'reel', 'reels', 'tv']);
+
+  const redact = (path) => {
+    const parts = (path || '').split('/');
+    return parts
+      .map((seg, i) => {
+        if (!seg) return seg;
+        if (KNOWN_SEGMENTS.has(seg.toLowerCase())) return seg;
+        const parent = (parts[i - 1] || '').toLowerCase();
+        if (parent === 't' || /^\d+$/.test(seg)) return '<id>';
+        if (CODE_PARENTS.has(parent)) return '<code>';
+        if (parent === 'stories') return '<user>';
+        return i === 1 ? '<user>' : '<redacted>';
+      })
+      .join('/');
+  };
+
   const count = (sel) => { try { return document.querySelectorAll(sel).length; } catch (e) { return `ERR: ${e.message}`; } };
 
   const hasSupport = (() => { try { document.querySelector('a:has(svg)'); return true; } catch { return false; } })();
@@ -107,7 +140,9 @@
       hasHeader: !!a.querySelector('header'),
       kids: [...a.children].slice(0, 4).map((c) =>
         `${describe(c)}(h=${Math.round(c.getBoundingClientRect().height)})`),
-      links: [...a.querySelectorAll('a[href^="/"]')].slice(0, 3).map((l) => l.getAttribute('href')),
+      // Shapes only — the real hrefs are the usernames of accounts you follow.
+      links: [...a.querySelectorAll('a[href^="/"]')].slice(0, 3)
+        .map((l) => redact(l.getAttribute('href'))),
     });
   });
 
@@ -135,7 +170,7 @@
   }
 
   const summary = {
-    url: location.pathname + location.search,
+    url: redact(location.pathname) + location.search,
     lang: document.documentElement.lang || '(none)',
     hasSelectorSupported: hasSupport,
     variantFollowingStuck: new URLSearchParams(location.search).get('variant') === 'following',
@@ -149,6 +184,8 @@
 
   console.log('%c Insta Filter — selector audit ', 'background:#222;color:#fff;padding:2px 6px');
   console.log('page:', summary.url, '· lang:', summary.lang, '· :has() supported:', hasSupport);
+  console.log('%c Output is shape only — no usernames, ids or post content. Safe to share. ',
+    'background:#060;color:#fff;padding:2px 6px');
   console.table(matches);
   console.table(labels);
   if (main) console.log('reel scroller candidates:', scrollers, scrollerInfo);
