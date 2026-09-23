@@ -73,9 +73,13 @@ blast radius.
 So that tapping the Instagram app lands you in the filtered version instead:
 
 **Shortcuts → Automation → + → App → Instagram → Is Opened → Run Immediately**, with one
-action: **Open URLs** → `https://www.instagram.com/?variant=following`
+action: **Open URLs** → `https://www.instagram.com/direct/inbox/`
 
-If Safari is **not** your default browser, use `x-safari-https://www.instagram.com/?variant=following`
+Land it on the **inbox**, not the feed. The automation can't tell a tapped DM notification
+from a deliberate launch, so both arrive at the same page — and from the inbox, the message
+you were notified about is at the top, while the feed is one tap away.
+
+If Safari is **not** your default browser, use `x-safari-https://www.instagram.com/direct/inbox/`
 instead. That forces Safari and leaves your default alone. (Works on iOS 15, 17 and 18;
 reported broken on iOS 16.)
 
@@ -188,8 +192,10 @@ self-signed Safari Web Extension later is a packaging change, not a rewrite.
 - **Mobile web DMs lack some features** — disappearing media, some voice and call
   features. The native app is still there for those; see the timed pass in
   [shortcuts/README.md](shortcuts/README.md).
-- **The bounce automation can't tell why the app opened**, so a notification tap lands on
-  the same page as a deliberate launch.
+- **The bounce automation can't tell why the app opened.** A notification tap lands on the
+  same page as a deliberate launch, which is why it should land on the inbox. The native
+  app also marks the message read before Safari takes over — a race Shortcuts can't win.
+  See [shortcuts/README.md](shortcuts/README.md#why-the-automation-lands-on-the-inbox-not-the-feed).
 - **Selectors break.** Instagram ships DOM changes regularly. Expect occasional
   maintenance; the tooling below is built to make it cheap.
 - **iOS sometimes resets extension permissions** after an update. The badge tells you.

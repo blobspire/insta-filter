@@ -37,12 +37,14 @@ the last page. The whole point is that the filtered version is the one within th
 > browser means unfiltered Instagram with no indication why.
 >
 > You do not have to change your default. iOS has an undocumented scheme that forces Safari:
+> swap `https://` for `x-safari-https://` in **every** `Open URLs` in this guide.
 >
 > ```
-> x-safari-https://www.instagram.com/?variant=following
+> x-safari-https://www.instagram.com/?variant=following   ← home-screen icon
+> x-safari-https://www.instagram.com/direct/inbox/        ← automation
 > ```
 >
-> Use that as the `Open URLs` value and your default browser is left alone. **Confirmed
+> Your default browser is left alone. **Confirmed
 > working on device** with Brave set as the default browser. Reported working on iOS 15, 17
 > and 18 and reported broken on iOS 16 — if you are on 16, switch your default to Safari
 > instead (Settings → Apps → Safari → Default Browser App).
@@ -94,15 +96,37 @@ Then add these actions:
 | 6 | &nbsp;&nbsp;`If` | `Time Between Dates` **is less than** `5` |
 | 7 | &nbsp;&nbsp;&nbsp;&nbsp;`Stop This Shortcut` | — you're inside the pass window, stay in the app |
 | 8 | &nbsp;&nbsp;`Otherwise` | |
-| 9 | &nbsp;&nbsp;&nbsp;&nbsp;`Open URLs` | `https://www.instagram.com/?variant=following` |
+| 9 | &nbsp;&nbsp;&nbsp;&nbsp;`Open URLs` | `https://www.instagram.com/direct/inbox/` |
 | 10 | `Otherwise` | (outer If — no pass file at all) |
-| 11 | &nbsp;&nbsp;`Open URLs` | `https://www.instagram.com/?variant=following` |
+| 11 | &nbsp;&nbsp;`Open URLs` | `https://www.instagram.com/direct/inbox/` |
 
 The nesting matters: steps 3–9 sit inside the outer `If`, and 7 sits inside the inner one.
 
+### Why the automation lands on the inbox, not the feed
+
+**The automation cannot know why Instagram opened.** The trigger reports only that the app
+launched. It does not receive the notification, the deep link, or which screen the app was
+showing, and iOS gives Shortcuts no way to read any of them. A tapped DM notification and a
+launch from the app drawer are indistinguishable, so both have to land on the same page.
+
+The inbox is the right common landing. When a notification brought you here, the message
+it was about is the most recent thread, so it sits at the top — one tap away. When you
+opened Instagram on purpose, the feed is one tap away instead. Landing on the feed gets the
+first case wrong in a way that costs you the message: you arrive somewhere else and have to
+remember to go looking.
+
+**The native app will mark that message read first.** Tapping the notification launches
+the app straight into the thread, and it records the message as seen before the
+automation can hand over to Safari. Shortcuts cannot win that race. Two mitigations:
+
+- If you'd rather senders not see "Seen" until you have actually read it, Instagram lets
+  you turn read receipts off in its message settings.
+- For text messages, long-pressing the notification shows the message without opening the
+  app at all, so nothing is marked read.
+
 **Behaviour:**
 
-- Open Instagram normally → bounced to the filtered web feed.
+- Open Instagram normally → bounced to your DM inbox in Safari, filtered.
 - Tap **IG pass 5 min** → the app opens and stays open for five minutes.
 - Tap a DM notification within that window → stays in the app.
 - Tap a DM notification outside it → bounced. Tap the pass shortcut and go back in.
@@ -117,7 +141,7 @@ automation bounces. The filter fails *closed*.
 If the pass file feels like too much machinery, the automation can be a single action:
 
 **App → Instagram → Is Opened → Run Immediately → `Open URLs`
-`https://www.instagram.com/?variant=following`**
+`https://www.instagram.com/direct/inbox/`**
 
 You lose the escape hatch, so every notification tap throws you to the web. Try it for a few
 days — if the notification bouncing annoys you, come back and add the pass.
