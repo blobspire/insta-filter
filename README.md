@@ -83,7 +83,7 @@ If Safari is **not** your default browser, use `x-safari-https://www.instagram.c
 instead. That forces Safari and leaves your default alone. (Works on iOS 15, 17 and 18;
 reported broken on iOS 16.)
 
-More options — a home-screen icon, and a timed pass for when you genuinely need the native
+More options — a home-screen icon (which also opens on the inbox), and a timed pass for when you genuinely need the native
 app — are in [shortcuts/README.md](shortcuts/README.md).
 
 > Fuller walkthrough, including the edit-on-Mac development loop and the iCloud pitfalls:
