@@ -15,7 +15,11 @@ This replaces the real Instagram icon on your home screen.
 
 | Field | Value |
 |---|---|
-| URL | `https://www.instagram.com/?variant=following` |
+| URL | `https://www.instagram.com/direct/inbox/` |
+
+It opens on your **DM inbox**, the same page the automation in step 3 lands on. Most
+launches are to answer someone who messaged you, so the inbox is the useful first screen.
+The feed is one tap away when that isn't why you opened it.
 
 Name it **Instagram**. Then from the shortcut's share sheet: **Add to Home Screen**, and pick
 a photo for the icon (a screenshot of the real Instagram glyph works).
@@ -40,8 +44,7 @@ the last page. The whole point is that the filtered version is the one within th
 > swap `https://` for `x-safari-https://` in **every** `Open URLs` in this guide.
 >
 > ```
-> x-safari-https://www.instagram.com/?variant=following   ← home-screen icon
-> x-safari-https://www.instagram.com/direct/inbox/        ← automation
+> x-safari-https://www.instagram.com/direct/inbox/   ← home-screen icon and automation
 > ```
 >
 > Your default browser is left alone. **Confirmed
